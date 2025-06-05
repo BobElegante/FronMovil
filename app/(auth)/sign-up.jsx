@@ -1,11 +1,11 @@
+// src/app/(auth)/sign-up.jsx
 import { useState } from "react";
 import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { View, Text, ScrollView, Dimensions, Alert, Image } from "react-native";
 
 import { images } from "../../constants";
-// CAMBIO IMPORTANTE: Importar de tu nuevo archivo de API
-import { createUser } from "../../lib/api"; // <-- ¡Aquí el cambio!
+import { createUser } from "../../lib/api";
 import { CustomButton, FormField } from "../../components";
 import { useGlobalContext } from "../../context/GlobalProvider";
 
@@ -38,19 +38,18 @@ const SignUp = () => {
 
     setSubmitting(true);
     try {
-      // Pasa los campos a tu función `createUser` del archivo `api.js`
-      // Asegúrate de que el orden y la cantidad de argumentos coincidan
-      // con la definición de `createUser` en `src/lib/api.js`.
-      const newUser = await createUser(
-        form.controlNumber,
-        form.fullName,
-        form.career,
-        form.age,
-        form.semester,
-        form.password // La contraseña debe ser el último argumento según tu `api.js` y `authController.register`
-      );
+      // Pasa los campos como un objeto JSON para mayor claridad y extensibilidad
+      const newUser = await createUser({
+        controlNumber: form.controlNumber,
+        fullName: form.fullName,
+        career: form.career,
+        age: parseInt(form.age), // Asegúrate de que 'age' y 'semester' sean números
+        semester: parseInt(form.semester),
+        password: form.password,
+      });
 
-      setUser(newUser); // `createUser` en api.js ya devuelve el objeto de usuario después de iniciar sesión
+      // Asumiendo que createUser devuelve { token, user } del backend
+      setUser(newUser.user);
       setIsLogged(true);
 
       Alert.alert("Correcto", "Registro exitoso e inicio de sesión automático");
@@ -78,7 +77,7 @@ const SignUp = () => {
           />
 
           <Text className="text-2xl font-semibold text-white mt-10 font-psemibold">
-            Registrate ahora en la CoyoteApp
+            Regístrate ahora en la CoyoteApp
           </Text>
 
           <FormField
@@ -123,7 +122,7 @@ const SignUp = () => {
             value={form.password}
             handleChangeText={(e) => setForm({ ...form, password: e })}
             otherStyles="mt-7"
-            secureTextEntry // Asegura que la contraseña se oculte
+            secureTextEntry
           />
 
           <CustomButton
@@ -150,4 +149,4 @@ const SignUp = () => {
   );
 };
 
-export default SignUp; 
+export default SignUp;

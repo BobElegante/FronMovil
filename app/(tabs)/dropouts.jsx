@@ -8,13 +8,15 @@ import {
   RefreshControl,
   Alert,
   TouchableOpacity,
-  ActivityIndicator
+  ActivityIndicator,
+  Image // Asegúrate de importar Image si usas icons.calendar
 } from 'react-native';
 import { FormField, CustomButton, SearchInput } from '../../components'; // Reutilizar componentes
-import { registerDropout, getAllDropouts, searchDropoutsByControlNumber } from '../../lib/api'; // Necesitamos crear searchDropoutsByControlNumber
-import DateTimePicker from '@react-native-community/datetimepicker'; // Para la fecha
-import { format } from 'date-fns'; // Para formatear la fecha
+import { registerDropout, getAllDropouts, searchDropoutsByControlNumber } from '../../lib/api';
+// import DateTimePicker from '@react-native-community/datetimepicker'; // ¡YA NO NECESARIO!
+// import { format } from 'date-fns'; // ¡YA NO NECESARIO!
 import { useGlobalContext } from "../../context/GlobalProvider";
+import { icons } from '../../constants'; // Asegúrate de que esta ruta sea correcta para tus iconos
 
 
 // Componente para mostrar un elemento de baja (individual)
@@ -25,9 +27,9 @@ const DropoutCard = ({ dropout }) => (
     <Text className="text-gray-100 font-pregular text-sm">Tipo de Baja: {dropout.dropout_type}</Text>
     <Text className="text-gray-100 font-pregular text-sm">Periodo de Baja: {dropout.dropout_period}</Text>
     <Text className="text-gray-100 font-pregular text-sm">Periodo de Ausencia: {dropout.absence_period}</Text>
-    <Text className="text-gray-100 font-pregular text-sm">Fecha de Baja: {format(new Date(dropout.dropout_date), 'dd/MM/yyyy')}</Text>
+    {/* Asegúrate de que dropout.dropout_date sea un string válido en tu backend (ej. 'YYYY-MM-DD') */}
+    <Text className="text-gray-100 font-pregular text-sm">Fecha de Baja: {dropout.dropout_date}</Text>
     <Text className="text-gray-100 font-pregular text-sm">Razón: {dropout.reason}</Text>
-    {/* Puedes añadir más detalles o botones de acción aquí */}
   </View>
 );
 
@@ -41,16 +43,28 @@ const DropoutsScreen = () => {
   const [allDropouts, setAllDropouts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]); // Para resultados de búsqueda
-  const [showDatePicker, setShowDatePicker] = useState(false); // Para el date picker
+  // const [showDatePicker, setShowDatePicker] = useState(false); // ¡YA NO NECESARIO!
 
   const [form, setForm] = useState({
-    userId: '', // control_number del alumno
+    controlNumber: '', // control_number del alumno
     dropoutType: '',
     dropoutPeriod: '',
     absencePeriod: '',
-    dropoutDate: new Date(),
+    dropoutDate: '', // Ahora es un string para la entrada manual
     reason: '',
   });
+
+  // Función para validar el formato de fecha 'YYYY-MM-DD'
+  const validateDateFormat = (dateString) => {
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(dateString)) {
+      return false; // Formato incorrecto
+    }
+    // Opcional: Validación adicional para fechas válidas (ej. 2023-02-30 es inválido)
+    const date = new Date(dateString);
+    return !isNaN(date.getTime()) && date.toISOString().slice(0,10) === dateString;
+  };
+
 
   const fetchDropouts = async () => {
     setLoading(true);
@@ -70,6 +84,7 @@ const DropoutsScreen = () => {
     setSearchQuery(query);
     if (!query) {
       setSearchResults([]); // Limpiar resultados si la query está vacía
+      await fetchDropouts(); // Recargar todas las bajas si se borra la búsqueda
       return;
     }
     setLoading(true);
@@ -98,20 +113,31 @@ const DropoutsScreen = () => {
   }, [user]);
 
   const handleSubmit = async () => {
-    if (!form.userId || !form.dropoutType || !form.dropoutPeriod || !form.absencePeriod || !form.dropoutDate || !form.reason) {
+    // Validaciones
+    if (!form.controlNumber || !form.dropoutType || !form.dropoutPeriod || !form.absencePeriod || !form.dropoutDate || !form.reason) {
       return Alert.alert("Error", "Por favor, completa todos los campos.");
     }
+
+    if (!validateDateFormat(form.dropoutDate)) {
+        return Alert.alert("Error de Fecha", "El formato de la fecha de baja debe ser AAAA-MM-DD (ej. 2023-01-15).");
+    }
+
     setSubmitting(true);
     try {
-      const response = await registerDropout(form);
-      Alert.alert("Éxito", response.message);
+      const response = await registerDropout({
+        ...form,
+        // Aquí no se necesita `new Date()` ni `.toISOString()`, ya que la API espera un string 'YYYY-MM-DD'
+        // si seguiste la Opción B en la discusión de `api.js`
+        // Si sigues la Opción A, tendrías que hacer: dropoutDate: new Date(form.dropoutDate)
+      });
+      Alert.alert("Éxito", response.message || "Baja registrada exitosamente.");
       // Limpiar formulario y recargar lista
       setForm({
-        userId: '',
+        controlNumber: '',
         dropoutType: '',
         dropoutPeriod: '',
         absencePeriod: '',
-        dropoutDate: new Date(),
+        dropoutDate: '', // Limpiar a string vacío
         reason: '',
       });
       fetchDropouts(); // Recargar la lista de bajas
@@ -124,12 +150,6 @@ const DropoutsScreen = () => {
     }
   };
 
-  // Manejador de cambio de fecha del DatePicker
-  const onChangeDate = (event, selectedDate) => {
-    const currentDate = selectedDate || form.dropoutDate;
-    setShowDatePicker(false);
-    setForm({ ...form, dropoutDate: currentDate });
-  };
 
 
   if (user?.role !== 'admin') {
@@ -166,11 +186,8 @@ const DropoutsScreen = () => {
               placeholder="Buscar baja por # control..."
               value={searchQuery}
               handleChangeText={(text) => {
-                setSearchQuery(text);
-                // Opcional: Buscar en tiempo real o solo al presionar Enter
-                // handleSearch(text);
-              }}
-              // Para buscar al presionar "Go" en el teclado
+                setSearchQuery(text); 
+              }} 
               onSubmitEditing={() => handleSearch(searchQuery)}
               otherStyles="mb-4"
             />
@@ -178,10 +195,10 @@ const DropoutsScreen = () => {
               title="Buscar"
               handlePress={() => handleSearch(searchQuery)}
               containerStyles="mt-2 mb-4"
-              isLoading={loading}
+              //isLoading={loading && searchQuery} {/* Solo mostrar loading si hay búsqueda activa */}
             />
 
-            {loading ? (
+            {loading && !searchQuery ? ( // Solo mostrar spinner si carga inicial o refresco, no por búsqueda
               <ActivityIndicator size="large" color="#FFA001" className="mt-8" />
             ) : (
               <FlatList
@@ -194,7 +211,7 @@ const DropoutsScreen = () => {
                   </Text>
                 )}
                 refreshControl={
-                  <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                  <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFA001" />
                 }
               />
             )}
@@ -203,9 +220,9 @@ const DropoutsScreen = () => {
           <View>
             <FormField
               title="Número de Control del Alumno"
-              value={form.userId}
+              value={form.controlNumber}
               placeholder="Ej: 21940001"
-              handleChangeText={(text) => setForm({ ...form, userId: text })}
+              handleChangeText={(text) => setForm({ ...form, controlNumber: text })}
               otherStyles="mt-4"
               keyboardType="numeric"
             />
@@ -231,27 +248,15 @@ const DropoutsScreen = () => {
               otherStyles="mt-4"
             />
 
-            <View className="mt-4">
-              <Text className="text-base text-gray-100 font-pmedium mb-2">Fecha de Baja</Text>
-              <TouchableOpacity
-                onPress={() => setShowDatePicker(true)}
-                className="w-full h-16 px-4 bg-black-100 rounded-2xl border-2 border-black-200 focus:border-secondary flex-row items-center"
-              >
-                <Text className="text-white font-pmedium text-base mr-2">
-                  {format(form.dropoutDate, 'dd/MM/yyyy')}
-                </Text>
-                <Image source={icons.calendar} resizeMode="contain" className="w-6 h-6 tint-gray-400" />
-              </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  testID="datePicker"
-                  value={form.dropoutDate}
-                  mode="date"
-                  display="default"
-                  onChange={onChangeDate}
-                />
-              )}
-            </View>
+            {/* Campo de Fecha de Baja (manual) */}
+            <FormField
+              title="Fecha de Baja (AAAA-MM-DD)"
+              value={form.dropoutDate}
+              placeholder="Ej: 2023-01-15"
+              handleChangeText={(text) => setForm({ ...form, dropoutDate: text })}
+              otherStyles="mt-4"
+              keyboardType="number-pad" // O 'default', dependiendo de tu preferencia
+            />
 
             <FormField
               title="Razón"

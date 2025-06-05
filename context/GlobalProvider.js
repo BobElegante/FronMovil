@@ -1,3 +1,4 @@
+// src/context/GlobalProvider.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getCurrentUser } from '../lib/api'; // Asegúrate de que esta ruta sea correcta
 
@@ -8,15 +9,15 @@ const GlobalProvider = ({ children }) => {
   const [isLogged, setIsLogged] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true); // Estado de carga inicial
-  const [error, setError] = useState(null); // Nuevo estado para manejar errores
+  // const [error, setError] = useState(null); // No es estrictamente necesario exponer el error globalmente a menos que un caso de uso específico lo requiera
 
   useEffect(() => {
     const checkUser = async () => {
       try {
-        setIsLoading(true); // Comenzamos a cargar
-        setError(null); // Limpiamos cualquier error anterior
+        setIsLoading(true);
+        // setError(null); // Limpiamos cualquier error anterior
 
-        const currentUser = await getCurrentUser(); // Intenta obtener el usuario actual
+        const currentUser = await getCurrentUser();
 
         if (currentUser) {
           setIsLogged(true);
@@ -27,20 +28,18 @@ const GlobalProvider = ({ children }) => {
         }
       } catch (error) {
         console.error("Error en GlobalProvider al obtener usuario:", error);
-        setError(error); // Guardamos el error
+        // setError(error); // Guardamos el error si es necesario
         setIsLogged(false);
         setUser(null);
-        // Si hay un error al obtener el usuario, es crucial limpiar el token si está corrupto
-        // (getCurrentUser en api.js ya hace esto)
+        // getCurrentUser en api.js ya maneja la limpieza del token en caso de error.
       } finally {
-        setIsLoading(false); // Terminamos de cargar, independientemente del resultado
+        setIsLoading(false);
       }
     };
 
     checkUser();
-  }, []); // El efecto se ejecuta solo una vez al montar el componente
+  }, []);
 
-  // Proporcionamos el estado y las funciones a los componentes hijos
   return (
     <GlobalContext.Provider
       value={{
@@ -49,7 +48,7 @@ const GlobalProvider = ({ children }) => {
         user,
         setUser,
         isLoading,
-        error, // También podemos exponer el error si es necesario
+        // error, // Removido si no se usa
       }}
     >
       {children}
@@ -57,4 +56,4 @@ const GlobalProvider = ({ children }) => {
   );
 };
 
-export default GlobalProvider; 
+export default GlobalProvider;

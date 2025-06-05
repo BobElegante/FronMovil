@@ -1,3 +1,4 @@
+// src/app/(auth)/sign-in.jsx
 import { useState } from "react";
 import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -5,7 +6,7 @@ import { View, Text, ScrollView, Dimensions, Alert, Image } from "react-native";
 
 import { images } from "../../constants";
 import { CustomButton, FormField } from "../../components";
-import { getCurrentUser, signIn } from "../../lib/api"; // <-- ¡Aquí el cambio!
+import { signIn } from "../../lib/api"; // ELIMINADO: getCurrentUser
 import { useGlobalContext } from "../../context/GlobalProvider";
 
 const SignIn = () => {
@@ -19,21 +20,24 @@ const SignIn = () => {
   const submit = async () => {
     if (form.controlNumber === "" || form.password === "") {
       Alert.alert("Error", "Por favor completa todos los campos");
-      return; // Añadir return para detener la ejecución
+      return;
     }
 
     setSubmitting(true);
 
     try {
-      const userData = await signIn(form.controlNumber, form.password);
+      // Asumiendo que signIn ahora devuelve { token, user }
+      const { user: userData, token } = await signIn(form.controlNumber, form.password);
 
-      setUser(userData); 
+      // Almacenar el token, por ejemplo, en AsyncStorage si lo necesitas para futuras peticiones
+      // await AsyncStorage.setItem('userToken', token); // Si estás usando AsyncStorage
+
+      setUser(userData);
       setIsLogged(true);
 
       Alert.alert("Correcto", "Inicio de sesión exitoso");
       router.replace("/home");
     } catch (error) {
-      // Asegúrate de que el mensaje de error venga del backend
       Alert.alert("Error", error.message);
     } finally {
       setSubmitting(false);
@@ -59,7 +63,7 @@ const SignIn = () => {
             Inicia sesión en la CoyoteApp
           </Text>
 
-           <FormField
+          <FormField
             title="Numero de control"
             value={form.controlNumber}
             handleChangeText={(e) => setForm({ ...form, controlNumber: e })}
@@ -71,7 +75,7 @@ const SignIn = () => {
             value={form.password}
             handleChangeText={(e) => setForm({ ...form, password: e })}
             otherStyles="mt-7"
-            secureTextEntry // Asegura que la contraseña se oculte
+            secureTextEntry
           />
 
           <CustomButton
@@ -89,7 +93,7 @@ const SignIn = () => {
               href="/sign-up"
               className="text-lg font-psemibold text-secondary"
             >
-              Registrate
+              Regístrate
             </Link>
           </View>
         </View>
@@ -98,4 +102,4 @@ const SignIn = () => {
   );
 };
 
-export default SignIn; 
+export default SignIn;
